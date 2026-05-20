@@ -79,23 +79,29 @@ export default function SubscriptionManagement() {
   const [page, setPage] = useState(1);
   const [subscriptions, setSubscriptions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
   useEffect(() => { setPage(1); }, [search, statusFilter]);
 
-  useEffect(() => {
+  function fetchData(isRefresh = false) {
+    if (isRefresh) setRefreshing(true); else setLoading(true);
     fetch("/api/admin/get-subscriptions")
       .then((r) => r.json())
       .then((data) => {
         if (data.success) setSubscriptions(data.subscriptions);
       })
-      .finally(() => setLoading(false));
-  }, []);
+      .finally(() => { setLoading(false); setRefreshing(false); });
+  }
+
+  useEffect(() => { fetchData(); }, []);
 
   const filtered = subscriptions.filter((row) => {
     const nameMatch = (row.user?.name || "").toLowerCase().includes(search.toLowerCase());
-    const statusMatch = statusFilter === "all" || (row.status || "").toLowerCase() === statusFilter;
+    const isBadge = (row.subscriptionType || "").toLowerCase().includes("badge");
+    const statusValue = (isBadge ? row.user?.badgeSubscriptionStatus : row.user?.subscriptionStatus) || "pending";
+    const statusMatch = statusFilter === "all" || statusValue.toLowerCase() === statusFilter;
     return nameMatch && statusMatch;
   });
 
@@ -227,20 +233,54 @@ export default function SubscriptionManagement() {
           color: "#ffffff",
         }}
       >
-        {/* Page title */}
-        <h1
-          style={{
-            fontFamily: PP_MORI,
-            fontWeight: 600,
-            fontSize: "clamp(18px, 1.67vw, 24px)",
-            lineHeight: "29px",
-            letterSpacing: "-0.02em",
-            color: "#ffffff",
-            margin: "0 0 clamp(16px, 1.8vw, 28px) 0",
-          }}
-        >
-          Subscription Management
-        </h1>
+        {/* Page title row */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "clamp(16px, 1.8vw, 28px)" }}>
+          <h1
+            style={{
+              fontFamily: PP_MORI,
+              fontWeight: 600,
+              fontSize: "clamp(18px, 1.67vw, 24px)",
+              lineHeight: "29px",
+              letterSpacing: "-0.02em",
+              color: "#ffffff",
+              margin: 0,
+            }}
+          >
+            Subscription Management
+          </h1>
+          {/* REFRESH BUTTON — uncomment to enable
+          <button
+            type="button"
+            onClick={() => fetchData(true)}
+            disabled={refreshing}
+            title="Refresh"
+            style={{
+              display: "flex", alignItems: "center", justifyContent: "center",
+              gap: 6,
+              background: "rgba(255,255,255,0.07)",
+              border: "1px solid rgba(255,255,255,0.12)",
+              borderRadius: 10,
+              padding: "clamp(7px, 0.65vw, 10px) clamp(12px, 1.1vw, 16px)",
+              color: "#ffffff",
+              fontFamily: GEIST,
+              fontSize: "clamp(10px, 0.83vw, 12px)",
+              cursor: refreshing ? "not-allowed" : "pointer",
+              opacity: refreshing ? 0.6 : 1,
+              transition: "background 0.15s",
+            }}
+            onMouseEnter={(e) => { if (!refreshing) e.currentTarget.style.background = "rgba(254,89,0,0.15)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.07)"; }}
+          >
+            <svg
+              width="14" height="14" viewBox="0 0 14 14" fill="none"
+              style={{ animation: refreshing ? "spin 0.8s linear infinite" : "none", flexShrink: 0 }}
+            >
+              <path d="M13 7A6 6 0 1 1 7 1a6 6 0 0 1 4.243 1.757L13 1v4h-4l1.5-1.5A4 4 0 1 0 11 7" stroke="#ffffff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            {refreshing ? "Refreshing…" : "Refresh"}
+          </button>
+          */}
+        </div>
 
         {/* Filters */}
         <div
@@ -563,6 +603,7 @@ export default function SubscriptionManagement() {
       </main>
 
       <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
         .table-scroll {
           scrollbar-width: thin;
           scrollbar-color: rgba(254,89,0,0.55) rgba(255,255,255,0.04);

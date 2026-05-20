@@ -1,5 +1,6 @@
 import clientPromise from "@/components/auth/config";
 import { ObjectId } from "mongodb";
+import { sendEmail, registrationVerifiedEmail, registrationUnverifiedEmail } from "@/lib/mailer";
 
 const BLOCKED = [
   "password", "role", "subscriptionStatus", "badgeSubscriptionStatus",
@@ -58,7 +59,26 @@ export default async function handler(req, res) {
 
     update.updatedAt = new Date();
 
+    const prevStatus = user.registrationStatus;
     await db.collection("users").updateOne({ _id: new ObjectId(id) }, { $set: update });
+
+    // Send email if registrationStatus changed
+    if (
+      "registrationStatus" in update &&
+      update.registrationStatus !== prevStatus &&
+      user.email
+    ) {
+      const name = update.name || user.name || "there";
+      const html = update.registrationStatus === true
+        ? registrationVerifiedEmail(name)
+        : registrationUnverifiedEmail(name);
+      const subject = update.registrationStatus === true
+        ? "Your Linkaro account has been verified"
+        : "Your Linkaro verification has been revoked";
+      sendEmail({ to: user.email, subject, html }).catch((err) =>
+        console.error("Email send error:", err)
+      );
+    }
 
     return res.status(200).json({ success: true });
   } catch (error) {

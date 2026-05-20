@@ -9,8 +9,6 @@ export default async function handler(req, res) {
     const client = await clientPromise;
     const db = client.db("linkaro");
 
-    const now = new Date();
-
     const subscriptions = await db
       .collection("subscriptions")
       .aggregate([
@@ -23,23 +21,6 @@ export default async function handler(req, res) {
           },
         },
         { $unwind: { path: "$user", preserveNullAndEmptyArrays: true } },
-        {
-          $match: {
-            $or: [
-              { "user.subscriptionStatus": "fraud" },
-              { "user.badgeSubscriptionStatus": "fraud" },
-              {
-                "user.subscriptionStatus": { $nin: ["inactive"] },
-                "user.badgeSubscriptionStatus": { $nin: ["inactive"] },
-                $or: [
-                  { subscriptionEndDate: { $gt: now } },
-                  { subscriptionEndDate: { $exists: false } },
-                  { subscriptionEndDate: null },
-                ],
-              },
-            ],
-          },
-        },
         {
           $project: {
             _id: 1,

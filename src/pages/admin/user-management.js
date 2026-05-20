@@ -151,6 +151,7 @@ export default function UserManagement() {
     monthlyRevenue: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [regFilter, setRegFilter] = useState("all");
@@ -160,7 +161,8 @@ export default function UserManagement() {
     setPage(1);
   }, [search, roleFilter, regFilter]);
 
-  useEffect(() => {
+  function fetchData(isRefresh = false) {
+    if (isRefresh) setRefreshing(true); else setLoading(true);
     fetch("/api/admin/get-users")
       .then((r) => r.json())
       .then((data) => {
@@ -169,8 +171,10 @@ export default function UserManagement() {
           setStats(data.stats);
         }
       })
-      .finally(() => setLoading(false));
-  }, []);
+      .finally(() => { setLoading(false); setRefreshing(false); });
+  }
+
+  useEffect(() => { fetchData(); }, []);
 
   async function handleDelete(id) {
     await fetch(`/api/admin/delete-user?id=${id}`, { method: "DELETE" });
@@ -355,40 +359,71 @@ export default function UserManagement() {
             </p>
           </div>
 
-          <button
-            type="button"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              background: "transparent",
-              border: "1px solid rgba(255,255,255,0.3)",
-              borderRadius: 50,
-              padding: "clamp(7px, 0.65vw, 10px) clamp(14px, 1.3vw, 20px)",
-              fontFamily: GEIST,
-              fontWeight: 500,
-              fontSize: "clamp(10px, 0.83vw, 12px)",
-              lineHeight: "14px",
-              letterSpacing: "0",
-              color: "#ffffff",
-              cursor: "pointer",
-              whiteSpace: "nowrap",
-            }}
-          >
-            <img
-              src="/download-icon.png"
-              alt=""
-              onError={(e) => {
-                e.target.style.display = "none";
-              }}
+          <div style={{ display: "flex", gap: "clamp(8px, 0.8vw, 12px)", flexWrap: "wrap" }}>
+            {/* REFRESH BUTTON — uncomment to enable
+            <button
+              type="button"
+              onClick={() => fetchData(true)}
+              disabled={refreshing}
+              title="Refresh"
               style={{
-                width: 14,
-                height: 14,
-                filter: "brightness(0) invert(1)",
+                display: "inline-flex", alignItems: "center", justifyContent: "center",
+                gap: 6,
+                background: "rgba(255,255,255,0.07)",
+                border: "1px solid rgba(255,255,255,0.12)",
+                borderRadius: 10,
+                padding: "clamp(7px, 0.65vw, 10px) clamp(14px, 1.3vw, 20px)",
+                fontFamily: GEIST,
+                fontWeight: 500,
+                fontSize: "clamp(10px, 0.83vw, 12px)",
+                color: "#ffffff",
+                cursor: refreshing ? "not-allowed" : "pointer",
+                opacity: refreshing ? 0.6 : 1,
+                whiteSpace: "nowrap",
+                transition: "background 0.15s",
               }}
-            />
-            Export data
-          </button>
+              onMouseEnter={(e) => { if (!refreshing) e.currentTarget.style.background = "rgba(254,89,0,0.15)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.07)"; }}
+            >
+              <svg
+                width="14" height="14" viewBox="0 0 14 14" fill="none"
+                style={{ animation: refreshing ? "spin 0.8s linear infinite" : "none", flexShrink: 0 }}
+              >
+                <path d="M13 7A6 6 0 1 1 7 1a6 6 0 0 1 4.243 1.757L13 1v4h-4l1.5-1.5A4 4 0 1 0 11 7" stroke="#ffffff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              {refreshing ? "Refreshing…" : "Refresh"}
+            </button>
+            */}
+
+            <button
+              type="button"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                background: "transparent",
+                border: "1px solid rgba(255,255,255,0.3)",
+                borderRadius: 50,
+                padding: "clamp(7px, 0.65vw, 10px) clamp(14px, 1.3vw, 20px)",
+                fontFamily: GEIST,
+                fontWeight: 500,
+                fontSize: "clamp(10px, 0.83vw, 12px)",
+                lineHeight: "14px",
+                letterSpacing: "0",
+                color: "#ffffff",
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+              }}
+            >
+              <img
+                src="/download-icon.png"
+                alt=""
+                onError={(e) => { e.target.style.display = "none"; }}
+                style={{ width: 14, height: 14, filter: "brightness(0) invert(1)" }}
+              />
+              Export data
+            </button>
+          </div>
         </div>
 
         {/* Stat cards */}
@@ -1066,6 +1101,7 @@ export default function UserManagement() {
       )}
 
       <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
         .table-scroll {
           scrollbar-width: thin;
           scrollbar-color: rgba(254,89,0,0.55) rgba(255,255,255,0.04);

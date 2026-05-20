@@ -1,5 +1,6 @@
 import clientPromise from "@/components/auth/config";
 import { ObjectId } from "mongodb";
+import { sendEmail, subscriptionStatusEmail } from "@/lib/mailer";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -36,12 +37,33 @@ export default async function handler(req, res) {
       ? "badgeSubscriptionStatus"
       : "subscriptionStatus";
 
+    const user = await db
+      .collection("users")
+      .findOne({ _id: new ObjectId(subscription.userId) });
+
     await db
       .collection("users")
       .updateOne(
         { _id: new ObjectId(subscription.userId) },
         { $set: { [userStatusField]: status } },
       );
+
+    // Send email notification
+    if (user?.email) {
+      const subjects = {
+        active: "Your Linkaro subscription has been approved",
+        rejected: "Your Linkaro subscription was not approved",
+        fraud: "Important notice about your Linkaro subscription",
+      };
+      const html = subscriptionStatusEmail(
+        user.name || "there",
+        status,
+        subscription.subscriptionType
+      );
+      sendEmail({ to: user.email, subject: subjects[status], html }).catch((err) =>
+        console.error("Email send error:", err)
+      );
+    }
 
     return res.status(200).json({ success: true, status });
   } catch (error) {

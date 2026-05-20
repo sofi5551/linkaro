@@ -441,7 +441,30 @@ export default function UserDetail() {
   const [form, setForm] = useState({});
   const [saveModal, setSaveModal] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [statusUpdating, setStatusUpdating] = useState(false);
+  const [regStatusConfirm, setRegStatusConfirm] = useState(false);
   const profileInputRef = useRef();
+
+  async function confirmToggleRegistrationStatus() {
+    if (statusUpdating || !user) return;
+    const newStatus = user.registrationStatus !== true;
+    setStatusUpdating(true);
+    setRegStatusConfirm(false);
+    try {
+      const res = await fetch("/api/admin/update-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, registrationStatus: newStatus }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setUser((prev) => ({ ...prev, registrationStatus: newStatus }));
+        setForm((prev) => ({ ...prev, registrationStatus: newStatus ? "verified" : "unverified" }));
+      }
+    } finally {
+      setStatusUpdating(false);
+    }
+  }
 
   useEffect(() => {
     if (!id) return;
@@ -938,7 +961,46 @@ export default function UserDetail() {
                     options={["verified", "unverified"]}
                   />
                 ) : (
-                  <StatusBadge status={user.registrationStatus} />
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flex: 1, flexWrap: "wrap", gap: 10 }}>
+                    <StatusBadge status={user.registrationStatus} />
+                    <button
+                      type="button"
+                      onClick={() => setRegStatusConfirm(true)}
+                      disabled={statusUpdating}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 6,
+                        fontFamily: GEIST,
+                        fontWeight: 500,
+                        fontSize: "clamp(10px, 0.83vw, 12px)",
+                        padding: "clamp(6px, 0.55vw, 8px) clamp(12px, 1.1vw, 16px)",
+                        borderRadius: 8,
+                        border: `1px solid ${user.registrationStatus === true ? "rgba(255,90,101,0.3)" : "rgba(20,202,116,0.3)"}`,
+                        background: user.registrationStatus === true ? "rgba(255,90,101,0.08)" : "rgba(20,202,116,0.08)",
+                        color: user.registrationStatus === true ? "#FF5A65" : "#14CA74",
+                        cursor: statusUpdating ? "not-allowed" : "pointer",
+                        opacity: statusUpdating ? 0.6 : 1,
+                        whiteSpace: "nowrap",
+                        transition: "background 0.15s, opacity 0.15s",
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!statusUpdating) e.currentTarget.style.background = user.registrationStatus === true ? "rgba(255,90,101,0.16)" : "rgba(20,202,116,0.16)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = user.registrationStatus === true ? "rgba(255,90,101,0.08)" : "rgba(20,202,116,0.08)";
+                      }}
+                    >
+                      {/* shield icon */}
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                        {user.registrationStatus === true
+                          ? <path d="M6 1L1 3v3c0 2.76 2.14 5.34 5 6 2.86-.66 5-3.24 5-6V3L6 1zm-1 7L3.5 6.5l.7-.7L5 6.8l2.8-2.8.7.7L5 8z" fill="#FF5A65"/>
+                          : <path d="M6 1L1 3v3c0 2.76 2.14 5.34 5 6 2.86-.66 5-3.24 5-6V3L6 1zm-1 7L3.5 6.5l.7-.7L5 6.8l2.8-2.8.7.7L5 8z" fill="#14CA74"/>
+                        }
+                      </svg>
+                      {statusUpdating ? "Updating…" : user.registrationStatus === true ? "Revoke Verification" : "Mark as Verified"}
+                    </button>
+                  </div>
                 )}
               </div>}
               {isProvider && (
@@ -992,6 +1054,128 @@ export default function UserDetail() {
           </>
         )}
       </main>
+
+      {/* Registration status confirmation modal */}
+      {regStatusConfirm && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 1000,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "rgba(0,0,0,0.6)",
+            backdropFilter: "blur(4px)",
+            WebkitBackdropFilter: "blur(4px)",
+          }}
+          onClick={() => setRegStatusConfirm(false)}
+        >
+          <div
+            style={{
+              background: "#001140",
+              border: "1px solid rgba(255,255,255,0.12)",
+              borderRadius: 20,
+              padding: "clamp(24px, 2.5vw, 36px)",
+              width: "clamp(300px, 30vw, 420px)",
+              boxShadow: "0 24px 64px rgba(0,0,0,0.6)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Icon */}
+            <div
+              style={{
+                width: 52,
+                height: 52,
+                borderRadius: "50%",
+                background: user?.registrationStatus === true ? "rgba(255,90,101,0.1)" : "rgba(20,202,116,0.1)",
+                border: `1px solid ${user?.registrationStatus === true ? "rgba(255,90,101,0.25)" : "rgba(20,202,116,0.25)"}`,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                marginBottom: 18,
+              }}
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"
+                  stroke={user?.registrationStatus === true ? "#FF5A65" : "#14CA74"}
+                  strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                {user?.registrationStatus === true
+                  ? <path d="M15 9l-6 6M9 9l6 6" stroke="#FF5A65" strokeWidth="1.8" strokeLinecap="round"/>
+                  : <path d="M9 12l2 2 4-4" stroke="#14CA74" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                }
+              </svg>
+            </div>
+
+            <h2
+              style={{
+                fontFamily: PP_MORI,
+                fontWeight: 600,
+                fontSize: "clamp(16px, 1.4vw, 20px)",
+                color: "#ffffff",
+                margin: "0 0 8px 0",
+                letterSpacing: "-0.02em",
+              }}
+            >
+              {user?.registrationStatus === true ? "Revoke Verification?" : "Verify this provider?"}
+            </h2>
+            <p
+              style={{
+                fontFamily: GEIST,
+                fontWeight: 400,
+                fontSize: "clamp(12px, 1vw, 14px)",
+                color: "rgba(255,255,255,0.55)",
+                margin: "0 0 28px 0",
+                lineHeight: "1.6",
+              }}
+            >
+              {user?.registrationStatus === true
+                ? `This will mark ${user?.name || "this provider"}'s registration as unverified. They may lose access to verified features.`
+                : `This will mark ${user?.name || "this provider"} as a verified provider. This grants them full access to verified features.`
+              }
+            </p>
+
+            <div style={{ display: "flex", gap: 10 }}>
+              <button
+                type="button"
+                onClick={() => setRegStatusConfirm(false)}
+                style={{
+                  flex: 1,
+                  fontFamily: GEIST,
+                  fontWeight: 400,
+                  fontSize: "clamp(12px, 1vw, 14px)",
+                  color: "rgba(255,255,255,0.75)",
+                  background: "rgba(255,255,255,0.06)",
+                  border: "1px solid rgba(255,255,255,0.12)",
+                  borderRadius: 50,
+                  padding: "clamp(10px, 0.9vw, 13px) 0",
+                  cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmToggleRegistrationStatus}
+                style={{
+                  flex: 1,
+                  fontFamily: GEIST,
+                  fontWeight: 500,
+                  fontSize: "clamp(12px, 1vw, 14px)",
+                  color: "#ffffff",
+                  background: user?.registrationStatus === true ? "#FF5A65" : "#14CA74",
+                  border: "none",
+                  borderRadius: 50,
+                  padding: "clamp(10px, 0.9vw, 13px) 0",
+                  cursor: "pointer",
+                }}
+              >
+                {user?.registrationStatus === true ? "Yes, Revoke" : "Yes, Verify"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Save confirmation modal */}
       {saveModal && (
