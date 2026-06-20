@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import Head from "next/head";
 import Sidebar from "@/components/Sidebar";
+import { apiFetch } from "@/lib/api";
 
 const SIDEBAR_W = 260;
 const COLLAPSED_W = 56;
@@ -89,7 +90,7 @@ export default function JobPostManagement() {
 
   useEffect(() => {
     setLoading(true);
-    fetch("/api/admin/get-jobs")
+    apiFetch("/admin/get-jobs")
       .then((r) => r.json())
       .then((data) => { if (data.success) setJobs(data.jobs); })
       .finally(() => setLoading(false));

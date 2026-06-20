@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import Head from "next/head";
 import { useRouter } from "next/router";
 import Sidebar from "@/components/Sidebar";
+import { apiFetch } from "@/lib/api";
 
 const SIDEBAR_W = 260;
 const COLLAPSED_W = 56;
@@ -163,7 +164,7 @@ export default function UserManagement() {
 
   function fetchData(isRefresh = false) {
     if (isRefresh) setRefreshing(true); else setLoading(true);
-    fetch("/api/admin/get-users")
+    apiFetch("/admin/get-users")
       .then((r) => r.json())
       .then((data) => {
         if (data.success) {
@@ -177,7 +178,7 @@ export default function UserManagement() {
   useEffect(() => { fetchData(); }, []);
 
   async function handleDelete(id) {
-    await fetch(`/api/admin/delete-user?id=${id}`, { method: "DELETE" });
+    await apiFetch(`/admin/delete-user?id=${id}`, { method: "DELETE" });
     setUsers((prev) => prev.filter((u) => u._id?.toString() !== id));
     setDeleteModal(null);
   }

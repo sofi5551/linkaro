@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import Head from "next/head";
 import { useRouter } from "next/router";
 import Sidebar from "@/components/Sidebar";
+import { apiFetch } from "@/lib/api";
 
 const PROVIDER_CATEGORIES = [
   "Computer Repair",
@@ -451,9 +452,8 @@ export default function UserDetail() {
     setStatusUpdating(true);
     setRegStatusConfirm(false);
     try {
-      const res = await fetch("/api/admin/update-user", {
+      const res = await apiFetch("/admin/update-user", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, registrationStatus: newStatus }),
       });
       const data = await res.json();
@@ -468,7 +468,7 @@ export default function UserDetail() {
 
   useEffect(() => {
     if (!id) return;
-    fetch(`/api/admin/get-user?id=${id}`)
+    apiFetch(`/admin/get-user?id=${id}`)
       .then((r) => r.json())
       .then((data) => {
         if (data.success) {
@@ -488,7 +488,7 @@ export default function UserDetail() {
       street: u.address?.street || "",
       city: u.address?.city || "",
       zip: u.address?.zip || "",
-      category: u.category || "",
+      category: u.category || (Array.isArray(u.categories) ? u.categories[0] : "") || "",
       profileImage: u.profileImage || "",
       cnicFrontImage: u.cnicFrontImage || "",
       cnicBackImage: u.cnicBackImage || "",
@@ -506,9 +506,8 @@ export default function UserDetail() {
     try {
       const regStatus = form.registrationStatus === "verified" ? true : form.registrationStatus === "unverified" ? false : undefined;
       const payload = { id, ...form, registrationStatus: regStatus };
-      const res = await fetch("/api/admin/update-user", {
+      const res = await apiFetch("/admin/update-user", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
       const data = await res.json();
@@ -1006,7 +1005,7 @@ export default function UserDetail() {
               {isProvider && (
                 <InfoRow
                   label="Category"
-                  value={user.category}
+                  value={user.category || (Array.isArray(user.categories) ? user.categories[0] : undefined)}
                   editMode={editMode}
                   inputValue={form.category}
                   onChange={f("category")}

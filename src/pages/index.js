@@ -3,6 +3,7 @@ import Head from "next/head";
 import Image from "next/image";
 import { useRouter } from "next/router";
 import StatusToast from "@/components/toaster/toast";
+import { apiFetch } from "@/lib/api";
 
 const ORANGE = "#FE5900";
 const INPUT_BG = "#4D4D4D";
@@ -55,9 +56,8 @@ export default function Home() {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/auth/login", {
+      const res = await apiFetch("/auth/login", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password, category: selectedCategory }),
       });
 

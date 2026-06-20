@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import Head from "next/head";
 import { useRouter } from "next/router";
 import Sidebar from "@/components/Sidebar";
+import { apiFetch } from "@/lib/api";
 
 const SIDEBAR_W = 260;
 const COLLAPSED_W = 56;
@@ -335,9 +336,8 @@ export default function SubscriptionTicketDetails() {
     setUpdating(true);
     setConfirmAction(null);
     try {
-      const res = await fetch("/api/admin/update-subscription-status", {
+      const res = await apiFetch("/admin/update-subscription-status", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, status }),
       });
       const data = await res.json();
@@ -364,7 +364,7 @@ export default function SubscriptionTicketDetails() {
 
   useEffect(() => {
     if (!id) return;
-    fetch(`/api/admin/get-subscription?id=${id}`)
+    apiFetch(`/admin/get-subscription?id=${id}`)
       .then((r) => r.json())
       .then((data) => {
         if (data.success) setItem(data.subscription);
