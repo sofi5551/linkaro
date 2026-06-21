@@ -235,7 +235,7 @@ export default function SubscriptionManagement() {
         }}
       >
         {/* Page title row */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "clamp(16px, 1.8vw, 28px)" }}>
+        <div className="page-header-row" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "clamp(16px, 1.8vw, 28px)" }}>
           <h1
             style={{
               fontFamily: PP_MORI,

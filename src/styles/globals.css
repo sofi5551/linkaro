@@ -128,6 +128,25 @@ input:focus {
   .dashboard-main {
     margin-left: 0 !important;
   }
+
+  /* Floating hamburger overlaps the page heading at this width —
+     stack and center the header so it clears the button instead. */
+  .page-header-row {
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    padding-top: 56px;
+    gap: 12px;
+  }
+
+  .page-header-title {
+    text-align: center;
+  }
+
+  .user-mgmt-header {
+    margin-bottom: 40px !important;
+  }
 }
 
 .ticket-detail-grid {

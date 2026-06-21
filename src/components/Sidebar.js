@@ -1,6 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/router";
+import { apiFetch } from "@/lib/api";
+import { useAuth } from "@/lib/authContext";
 
 const ORANGE = "#FE5900";
 const GEIST = "'Geist', sans-serif";
@@ -15,6 +17,12 @@ const navItems = [
   { label: "Subscription Management", icon: "/sub-icon.svg", href: "/admin/subscription-management" },
   { label: "Dashboard Manager", icon: "/dash-manager-icon.svg", href: "/dashboard-manager" },
 ];
+
+// Roles other than "admin" only ever see the one page they're scoped to.
+const ROLE_VISIBLE_HREFS = {
+  "user manager": ["/admin/user-management"],
+  "ticket manager": ["/ticket-management"],
+};
 
 function NavIcon({ src, isActive }) {
   return (
@@ -70,6 +78,18 @@ function NavLink({ item, isActive }) {
 export default function Sidebar({ isOpen, onToggle }) {
   const router = useRouter();
   const settingsActive = router.pathname === "/settings";
+  const { role } = useAuth();
+
+  const visibleHrefs = ROLE_VISIBLE_HREFS[role];
+  const visibleNavItems = visibleHrefs
+    ? navItems.filter((item) => visibleHrefs.includes(item.href))
+    : navItems;
+  const isRestrictedRole = Boolean(visibleHrefs);
+
+  async function handleLogout() {
+    await apiFetch("/auth/logout", { method: "POST" });
+    router.push("/");
+  }
 
   return (
     <aside
@@ -172,7 +192,7 @@ export default function Sidebar({ isOpen, onToggle }) {
 
       {/* Nav items */}
       <nav className="sidebar-nav" style={{ flex: 1, overflowY: "auto", overflowX: "hidden" }}>
-        {navItems.map((item) => (
+        {visibleNavItems.map((item) => (
           <NavLink
             key={item.href}
             item={item}
@@ -191,33 +211,35 @@ export default function Sidebar({ isOpen, onToggle }) {
           }}
         />
 
-        {/* Settings & Configuration */}
-        <Link
-          href="/settings"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "clamp(8px, 0.8vw, 12px)",
-            padding: "clamp(11px, 1vw, 14px) 16px clamp(11px, 1vw, 14px) 20px",
-            textDecoration: "none",
-            color: settingsActive ? ORANGE : "rgba(255,255,255,0.7)",
-            borderRight: `3px solid ${settingsActive ? ORANGE : "transparent"}`,
-          }}
-        >
-          <NavIcon src="/setting-icon.svg" isActive={settingsActive} />
-          <span
+        {/* Settings & Configuration — restricted roles only see their one page */}
+        {!isRestrictedRole && (
+          <Link
+            href="/settings"
             style={{
-              fontFamily: PP_MORI,
-              fontWeight: 600,
-              fontSize: "clamp(11px, 0.97vw, 14px)",
-              lineHeight: "23px",
-              letterSpacing: "-0.02em",
-              whiteSpace: "nowrap",
+              display: "flex",
+              alignItems: "center",
+              gap: "clamp(8px, 0.8vw, 12px)",
+              padding: "clamp(11px, 1vw, 14px) 16px clamp(11px, 1vw, 14px) 20px",
+              textDecoration: "none",
+              color: settingsActive ? ORANGE : "rgba(255,255,255,0.7)",
+              borderRight: `3px solid ${settingsActive ? ORANGE : "transparent"}`,
             }}
           >
-            Settings & Configuration
-          </span>
-        </Link>
+            <NavIcon src="/setting-icon.svg" isActive={settingsActive} />
+            <span
+              style={{
+                fontFamily: PP_MORI,
+                fontWeight: 600,
+                fontSize: "clamp(11px, 0.97vw, 14px)",
+                lineHeight: "23px",
+                letterSpacing: "-0.02em",
+                whiteSpace: "nowrap",
+              }}
+            >
+              Settings & Configuration
+            </span>
+          </Link>
+        )}
 
         {/* Profile */}
         <Link
@@ -296,6 +318,38 @@ export default function Sidebar({ isOpen, onToggle }) {
             </div>
           </div>
         </Link>
+
+        {/* Logout */}
+        <button
+          type="button"
+          onClick={handleLogout}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "clamp(8px, 0.8vw, 12px)",
+            width: "100%",
+            padding: "clamp(11px, 1vw, 14px) 16px clamp(11px, 1vw, 14px) 20px",
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            textAlign: "left",
+            color: "rgba(255,255,255,0.7)",
+          }}
+        >
+          <NavIcon src="/logout-icon.svg" isActive={false} />
+          <span
+            style={{
+              fontFamily: PP_MORI,
+              fontWeight: 600,
+              fontSize: "clamp(11px, 0.97vw, 14px)",
+              lineHeight: "23px",
+              letterSpacing: "-0.02em",
+              whiteSpace: "nowrap",
+            }}
+          >
+            Logout
+          </span>
+        </button>
       </div>
     </aside>
   );

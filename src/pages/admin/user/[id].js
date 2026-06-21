@@ -57,6 +57,43 @@ const PROVIDER_CATEGORIES = [
   "Fitness Trainer",
 ];
 
+// Same list as the mobile app's lib/constants/pakistan_cities.dart — kept in
+// sync so an address entered here resolves to the same set of places the
+// backend's geocoding (constrained to Pakistan) expects.
+const PAKISTAN_CITIES = [
+  "Abbottabad", "Ahmedpur East", "Arifwala", "Astore", "Attock", "Awaran",
+  "Bagh", "Bahawalnagar", "Bahawalpur", "Bannu", "Barkhan", "Battagram",
+  "Bhakkar", "Bhimber", "Bolan", "Buner", "Burewala", "Chaman", "Charsadda",
+  "Chakwal", "Chiniot", "Chishtian", "Chitral", "Dadu", "Daska",
+  "Dera Allah Yar", "Dera Ghazi Khan", "Dera Ismail Khan",
+  "Dera Murad Jamali", "Diamer", "Faisalabad", "Fazilpur", "Ghanche",
+  "Ghizer", "Ghotki", "Gilgit", "Gojra", "Gujranwala", "Gujrat", "Gwadar",
+  "Hafizabad", "Hangu", "Haripur", "Harnai", "Haroonabad", "Hasilpur",
+  "Hattian Bala", "Haveli", "Hub", "Hunza", "Hyderabad", "Islamabad",
+  "Jacobabad", "Jamshoro", "Jampur", "Jaranwala", "Jatoi", "Jhal Magsi",
+  "Jhang", "Jhelum", "Kabirwala", "Kahror Pakka", "Kalat", "Kambar",
+  "Kamoke", "Kandhkot", "Karachi", "Karak", "Kasur", "Kashmore", "Khairpur",
+  "Khanewal", "Kharan", "Kharmang", "Khar", "Khushab", "Khuzdar", "Kohat",
+  "Kohlu", "Kohistan", "Kot Addu", "Kot Radha Kishan", "Kotli", "Lahore",
+  "Lakki Marwat", "Larkana", "Lasbela", "Layyah", "Liaquatpur", "Lodhran",
+  "Loralai", "Lower Dir", "Malakand", "Mandi Bahauddin", "Mansehra",
+  "Mardan", "Mastung", "Matiari", "Mehar", "Mian Channu", "Mianwali",
+  "Mingora", "Miranshah", "Mirpur", "Mirpur Khas", "Mirpur Sakro", "Moro",
+  "Multan", "Murree", "Musakhel", "Muzaffargarh", "Muzaffarabad",
+  "Nankana Sahib", "Narowal", "Naushahro Feroze", "Neelum", "Nowshera",
+  "Nushki", "Okara", "Pakpattan", "Panjgur", "Pano Aqil", "Parachinar",
+  "Pasrur", "Pattoki", "Peshawar", "Phalia", "Pir Mahal", "Pishin",
+  "Quetta", "Rahim Yar Khan", "Rajanpur", "Rawalakot", "Rawalpindi",
+  "Renala Khurd", "Sadiqabad", "Sahiwal", "Sanghar", "Sargodha", "Sehwan",
+  "Shaheed Benazirabad", "Shahdadkot", "Shangla", "Sheikhupura", "Sherani",
+  "Shigar", "Shikarpur", "Shorkot", "Shujaabad", "Sialkot", "Sibi",
+  "Skardu", "Sohbatpur", "South Waziristan", "Sudhnoti", "Sukkur", "Swabi",
+  "Swat", "Talagang", "Tando Adam", "Tando Allahyar",
+  "Tando Muhammad Khan", "Tank", "Taxila", "Thatta", "Toba Tek Singh",
+  "Tor Ghar", "Turbat", "Umerkot", "Upper Dir", "Usta Muhammad", "Vehari",
+  "Wah Cantonment", "Wana", "Washuk", "Wazirabad", "Zhob", "Ziarat",
+];
+
 const SIDEBAR_W = 260;
 const COLLAPSED_W = 56;
 const ORANGE = "#FE5900";
@@ -223,6 +260,178 @@ function CustomSelect({ value, onChange, options }) {
   );
 }
 
+function SearchableSelect({ value, onChange, options }) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const ref = useRef();
+  const searchRef = useRef();
+
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (ref.current && !ref.current.contains(e.target)) {
+        setOpen(false);
+        setSearch("");
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (open) searchRef.current?.focus();
+  }, [open]);
+
+  const display = value || "— Select —";
+  const filtered = options.filter((o) =>
+    o.toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <div ref={ref} style={{ flex: 1, position: "relative" }}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        style={{
+          width: "100%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          background: "rgba(255,255,255,0.07)",
+          border: "1px solid rgba(255,255,255,0.15)",
+          borderRadius: 6,
+          padding: "6px 10px",
+          fontFamily: GEIST,
+          fontSize: "clamp(10px, 0.83vw, 13px)",
+          color: value ? "#ffffff" : "rgba(255,255,255,0.35)",
+          cursor: "pointer",
+          textAlign: "left",
+          outline: "none",
+        }}
+      >
+        <span
+          style={{
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {display}
+        </span>
+        <svg
+          width="10"
+          height="6"
+          viewBox="0 0 10 6"
+          fill="none"
+          style={{
+            flexShrink: 0,
+            marginLeft: 6,
+            transform: open ? "rotate(180deg)" : "rotate(0deg)",
+            transition: "transform 0.15s",
+          }}
+        >
+          <path
+            d="M1 1L5 5L9 1"
+            stroke="rgba(255,255,255,0.4)"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </button>
+
+      {open && (
+        <div
+          style={{
+            position: "absolute",
+            top: "calc(100% + 4px)",
+            left: 0,
+            right: 0,
+            background: "#0D1B3E",
+            border: "1px solid rgba(255,255,255,0.15)",
+            borderRadius: 8,
+            zIndex: 50,
+            boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
+            overflow: "hidden",
+          }}
+        >
+          <div style={{ padding: 8, borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+            <input
+              ref={searchRef}
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search city…"
+              style={{
+                width: "100%",
+                boxSizing: "border-box",
+                background: "rgba(255,255,255,0.07)",
+                border: "1px solid rgba(255,255,255,0.15)",
+                borderRadius: 6,
+                padding: "6px 8px",
+                fontFamily: GEIST,
+                fontSize: "clamp(10px, 0.83vw, 13px)",
+                color: "#ffffff",
+                outline: "none",
+              }}
+            />
+          </div>
+          <div
+            style={{
+              maxHeight: 200,
+              overflowY: "auto",
+              scrollbarWidth: "thin",
+              scrollbarColor: "rgba(255,255,255,0.15) transparent",
+            }}
+          >
+            {filtered.length === 0 ? (
+              <div
+                style={{
+                  padding: "8px 12px",
+                  fontFamily: GEIST,
+                  fontSize: "clamp(10px, 0.83vw, 13px)",
+                  color: "rgba(255,255,255,0.35)",
+                }}
+              >
+                No matches
+              </div>
+            ) : (
+              filtered.map((o) => (
+                <div
+                  key={o}
+                  onClick={() => {
+                    onChange(o);
+                    setOpen(false);
+                    setSearch("");
+                  }}
+                  style={{
+                    padding: "8px 12px",
+                    fontFamily: GEIST,
+                    fontSize: "clamp(10px, 0.83vw, 13px)",
+                    color: o === value ? ORANGE : "#ffffff",
+                    background: o === value ? "rgba(254,89,0,0.1)" : "transparent",
+                    cursor: "pointer",
+                    transition: "background 0.1s",
+                  }}
+                  onMouseEnter={(e) => {
+                    if (o !== value)
+                      e.currentTarget.style.background = "rgba(255,255,255,0.06)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background =
+                      o === value ? "rgba(254,89,0,0.1)" : "transparent";
+                  }}
+                >
+                  {o}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function StatusBadge({ status }) {
   const s = (status != null ? String(status) : "").toLowerCase();
   let bg, color, label;
@@ -267,6 +476,7 @@ function InfoRow({
   onChange,
   type = "text",
   options,
+  searchable = false,
 }) {
   return (
     <div
@@ -299,7 +509,13 @@ function InfoRow({
           flexShrink: 0,
         }}
       />
-      {editMode && options ? (
+      {editMode && options && searchable ? (
+        <SearchableSelect
+          value={inputValue}
+          onChange={onChange}
+          options={options}
+        />
+      ) : editMode && options ? (
         <CustomSelect
           value={inputValue}
           onChange={onChange}
@@ -489,6 +705,7 @@ export default function UserDetail() {
       city: u.address?.city || "",
       zip: u.address?.zip || "",
       category: u.category || (Array.isArray(u.categories) ? u.categories[0] : "") || "",
+      about: u.about || "",
       profileImage: u.profileImage || "",
       cnicFrontImage: u.cnicFrontImage || "",
       cnicBackImage: u.cnicBackImage || "",
@@ -512,19 +729,14 @@ export default function UserDetail() {
       });
       const data = await res.json();
       if (data.success) {
-        setUser((prev) => ({
-          ...prev,
-          name: form.name || prev.name,
-          phone: form.phone || prev.phone,
-          gender: form.gender,
-          cnic: form.cnic,
-          address: { street: form.street, city: form.city, zip: form.zip },
-          category: form.category,
-          profileImage: form.profileImage || prev.profileImage,
-          cnicFrontImage: form.cnicFrontImage || prev.cnicFrontImage,
-          cnicBackImage: form.cnicBackImage || prev.cnicBackImage,
-          registrationStatus: form.registrationStatus === "verified" ? true : false,
-        }));
+        // Re-fetch rather than merging locally — the backend may have
+        // derived a new latitude/longitude from the street/city just sent,
+        // and the response here doesn't include the updated record.
+        const fresh = await apiFetch(`/admin/get-user?id=${id}`).then((r) => r.json());
+        if (fresh.success) {
+          setUser(fresh.user);
+          initForm(fresh.user);
+        }
         setEditMode(false);
       }
     } finally {
@@ -906,6 +1118,8 @@ export default function UserDetail() {
                 editMode={editMode}
                 inputValue={form.city}
                 onChange={f("city")}
+                options={PAKISTAN_CITIES}
+                searchable
               />
               <InfoRow
                 label="Postal Code"
@@ -1011,6 +1225,99 @@ export default function UserDetail() {
                   onChange={f("category")}
                   options={PROVIDER_CATEGORIES}
                 />
+              )}
+              {isProvider && !editMode && user.latitude != null && user.longitude != null && (
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    borderBottom: "1px solid rgba(255,255,255,0.07)",
+                    padding: "clamp(10px, 1vw, 14px) 0",
+                  }}
+                >
+                  <span
+                    style={{
+                      fontFamily: GEIST,
+                      fontWeight: 400,
+                      fontSize: "clamp(10px, 0.83vw, 12px)",
+                      color: "rgba(255,255,255,0.55)",
+                    }}
+                  >
+                    Location (from address)
+                  </span>
+                  <a
+                    href={`https://www.google.com/maps?q=${user.latitude},${user.longitude}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{
+                      fontFamily: GEIST,
+                      fontWeight: 500,
+                      fontSize: "clamp(10px, 0.83vw, 12px)",
+                      color: ORANGE,
+                      textDecoration: "none",
+                    }}
+                  >
+                    View on map ↗
+                  </a>
+                </div>
+              )}
+
+              {/* About — provider only */}
+              {isProvider && (
+                <div
+                  style={{
+                    borderBottom: "1px solid rgba(255,255,255,0.07)",
+                    padding: "clamp(10px, 1vw, 14px) 0",
+                  }}
+                >
+                  <span
+                    style={{
+                      fontFamily: GEIST,
+                      fontWeight: 400,
+                      fontSize: "clamp(10px, 0.83vw, 12px)",
+                      lineHeight: "100%",
+                      color: "rgba(255,255,255,0.55)",
+                      display: "block",
+                      marginBottom: 8,
+                    }}
+                  >
+                    About
+                  </span>
+                  {editMode ? (
+                    <textarea
+                      value={form.about}
+                      onChange={(e) => f("about")(e.target.value)}
+                      rows={3}
+                      style={{
+                        width: "100%",
+                        background: "rgba(255,255,255,0.07)",
+                        border: "1px solid rgba(255,255,255,0.15)",
+                        borderRadius: 6,
+                        padding: "8px 10px",
+                        fontFamily: GEIST,
+                        fontSize: "clamp(10px, 0.83vw, 13px)",
+                        color: "#ffffff",
+                        outline: "none",
+                        resize: "vertical",
+                        boxSizing: "border-box",
+                      }}
+                    />
+                  ) : (
+                    <p
+                      style={{
+                        fontFamily: GEIST,
+                        fontWeight: 400,
+                        fontSize: "clamp(10px, 0.83vw, 13px)",
+                        lineHeight: 1.5,
+                        color: "#8E8E8E",
+                        margin: 0,
+                      }}
+                    >
+                      {user.about || "—"}
+                    </p>
+                  )}
+                </div>
               )}
 
               {/* CNIC images — provider only */}

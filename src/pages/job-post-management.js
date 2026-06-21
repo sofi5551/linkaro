@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Head from "next/head";
 import Sidebar from "@/components/Sidebar";
 import { apiFetch } from "@/lib/api";
@@ -49,12 +49,14 @@ function HamburgerLines() {
   );
 }
 
+const STATUS_LABELS = { open: "Open", in_progress: "In Progress", completed: "Completed" };
+
 function StatusBadge({ status }) {
   const s = (status || "open").toLowerCase();
   const colors = {
-    open:   { bg: "rgba(34,197,94,0.15)",  text: "#22C55E",  border: "rgba(34,197,94,0.3)" },
-    closed: { bg: "rgba(107,114,128,0.15)", text: "#9CA3AF",  border: "rgba(107,114,128,0.3)" },
-    filled: { bg: "rgba(59,130,246,0.15)",  text: "#60A5FA",  border: "rgba(59,130,246,0.3)" },
+    open:        { bg: "rgba(34,197,94,0.15)",  text: "#22C55E", border: "rgba(34,197,94,0.3)" },
+    in_progress: { bg: "rgba(59,130,246,0.15)", text: "#60A5FA", border: "rgba(59,130,246,0.3)" },
+    completed:   { bg: "rgba(107,114,128,0.15)", text: "#9CA3AF", border: "rgba(107,114,128,0.3)" },
   };
   const c = colors[s] || colors.open;
   return (
@@ -69,12 +71,103 @@ function StatusBadge({ status }) {
         fontFamily: GEIST,
         fontSize: "clamp(10px, 0.76vw, 11px)",
         fontWeight: 500,
-        textTransform: "capitalize",
         whiteSpace: "nowrap",
       }}
     >
-      {s}
+      {STATUS_LABELS[s] || s}
     </span>
+  );
+}
+
+function ChevronDown() {
+  return (
+    <svg width="10" height="6" viewBox="0 0 10 6" fill="none" style={{ flexShrink: 0 }}>
+      <path d="M1 1L5 5L9 1" stroke="#AEB9E1" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function FilterDropdown({ label, value, options, onChange }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef();
+
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const current = options.find((o) => o.value === value);
+  const display = value === "all" ? label : current?.label || value;
+
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(255,255,255,0.08)",
+          borderRadius: 8,
+          padding: "clamp(8px, 0.8vw, 11px) clamp(12px, 1.1vw, 16px)",
+          fontFamily: GEIST,
+          fontWeight: 400,
+          fontSize: "clamp(12px, 0.97vw, 14px)",
+          lineHeight: "10px",
+          letterSpacing: "0",
+          color: "#AEB9E1",
+          cursor: "pointer",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {display}
+        <ChevronDown />
+      </button>
+
+      {open && (
+        <div
+          style={{
+            position: "absolute",
+            top: "calc(100% + 6px)",
+            right: 0,
+            minWidth: 160,
+            background: "#0D1B3E",
+            border: "1px solid rgba(255,255,255,0.12)",
+            borderRadius: 10,
+            zIndex: 50,
+            maxHeight: 240,
+            overflowY: "auto",
+            boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
+          }}
+        >
+          {options.map((opt) => (
+            <div
+              key={opt.value}
+              onClick={() => {
+                onChange(opt.value);
+                setOpen(false);
+              }}
+              style={{
+                padding: "9px 14px",
+                fontFamily: GEIST,
+                fontSize: "clamp(12px, 0.97vw, 14px)",
+                color: opt.value === value ? ORANGE : "#ffffff",
+                background: opt.value === value ? "rgba(254,89,0,0.1)" : "transparent",
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {opt.value === "all" ? `All ${label}` : opt.label}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -84,9 +177,23 @@ export default function JobPostManagement() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [locationFilter, setLocationFilter] = useState("all");
+  const [dateFilter, setDateFilter] = useState("all");
   const [page, setPage] = useState(1);
+  const [deleteModal, setDeleteModal] = useState(null);
+  const [isSmallScreen, setIsSmallScreen] = useState(false);
 
-  useEffect(() => { setPage(1); }, [search, categoryFilter]);
+  useEffect(() => {
+    const check = () => setIsSmallScreen(window.innerWidth < 640);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, categoryFilter, statusFilter, locationFilter, dateFilter]);
 
   useEffect(() => {
     setLoading(true);
@@ -96,14 +203,56 @@ export default function JobPostManagement() {
       .finally(() => setLoading(false));
   }, []);
 
-  const categories = ["all", ...Array.from(new Set(jobs.map((j) => j.category).filter(Boolean)))];
+  async function handleDelete(id) {
+    await apiFetch(`/admin/delete-job?id=${id}`, { method: "DELETE" });
+    setJobs((prev) => prev.filter((j) => j._id?.toString() !== id));
+    setDeleteModal(null);
+  }
+
+  const categoryOptions = [
+    { value: "all", label: "Category" },
+    ...Array.from(new Set(jobs.map((j) => j.category).filter(Boolean))).map((c) => ({ value: c, label: c })),
+  ];
+  const statusOptions = [
+    { value: "all", label: "Status" },
+    { value: "open", label: "Open" },
+    { value: "in_progress", label: "In Progress" },
+    { value: "completed", label: "Completed" },
+  ];
+  const locationOptions = [
+    { value: "all", label: "Location" },
+    ...Array.from(new Set(jobs.map((j) => j.location).filter(Boolean))).map((l) => ({ value: l, label: l })),
+  ];
+  const dateOptions = [
+    { value: "all", label: "Date posted" },
+    { value: "today", label: "Today" },
+    { value: "this_week", label: "This Week" },
+    { value: "this_month", label: "This Month" },
+  ];
+
+  function matchesDateRange(dateStr, range) {
+    if (range === "all" || !dateStr) return true;
+    const d = new Date(dateStr);
+    const now = new Date();
+    if (range === "today") return d.toDateString() === now.toDateString();
+    if (range === "this_week") {
+      const weekAgo = new Date(now);
+      weekAgo.setDate(now.getDate() - 7);
+      return d >= weekAgo && d <= now;
+    }
+    if (range === "this_month") {
+      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    }
+    return true;
+  }
 
   const filtered = jobs.filter((row) => {
-    const nameMatch =
-      (row.consumer?.name || "").toLowerCase().includes(search.toLowerCase()) ||
-      (row.title || "").toLowerCase().includes(search.toLowerCase());
+    const titleMatch = (row.title || "").toLowerCase().includes(search.toLowerCase());
     const catMatch = categoryFilter === "all" || row.category === categoryFilter;
-    return nameMatch && catMatch;
+    const statusMatch = statusFilter === "all" || (row.status || "open") === statusFilter;
+    const locationMatch = locationFilter === "all" || row.location === locationFilter;
+    const dateMatch = matchesDateRange(row.createdAt, dateFilter);
+    return titleMatch && catMatch && statusMatch && locationMatch && dateMatch;
   });
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
@@ -204,8 +353,17 @@ export default function JobPostManagement() {
           color: "#ffffff",
         }}
       >
-        {/* Page title */}
-        <div style={{ marginBottom: "clamp(16px, 1.8vw, 28px)" }}>
+        {/* Page title + search */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            flexWrap: "wrap",
+            gap: "clamp(10px, 1.2vw, 16px)",
+            marginBottom: "clamp(16px, 1.8vw, 28px)",
+          }}
+        >
           <h1
             style={{
               fontFamily: PP_MORI,
@@ -215,78 +373,69 @@ export default function JobPostManagement() {
               letterSpacing: "-0.02em",
               color: "#ffffff",
               margin: 0,
+              flex: isSmallScreen ? "1 1 100%" : "0 0 auto",
+              textAlign: isSmallScreen ? "center" : "left",
             }}
           >
             Job Post Management
           </h1>
-        </div>
 
-        {/* Filters */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            flexWrap: "wrap",
-            gap: "clamp(8px, 0.8vw, 12px)",
-            marginBottom: "clamp(12px, 1.2vw, 18px)",
-          }}
-        >
           {/* Search */}
-          <div style={{ position: "relative", flex: "1 1 180px", maxWidth: 300 }}>
+          <div
+            style={{
+              position: "relative",
+              flex: isSmallScreen ? "1 1 100%" : "1 1 220px",
+              maxWidth: isSmallScreen ? "100%" : 352,
+            }}
+          >
             <img
               src="/search-icon.png"
               alt=""
               style={{
-                position: "absolute", left: 10, top: "50%",
+                position: "absolute", left: 16, top: "50%",
                 transform: "translateY(-50%)", width: 14, height: 14,
                 opacity: 0.4, pointerEvents: "none",
               }}
             />
             <input
               type="text"
-              placeholder="Search by consumer or job title…"
+              placeholder="Search Job Title"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               style={{
                 width: "100%",
                 boxSizing: "border-box",
-                background: "rgba(255,255,255,0.05)",
-                border: "1px solid rgba(255,255,255,0.15)",
-                borderRadius: 8,
-                padding: "clamp(7px, 0.65vw, 10px) clamp(10px, 1vw, 14px) clamp(7px, 0.65vw, 10px) 32px",
+                background: "#FFFFFF26",
+                border: "none",
+                borderRadius: 200,
+                padding: "clamp(9px, 0.85vw, 12px) clamp(14px, 1.3vw, 18px) clamp(9px, 0.85vw, 12px) 38px",
                 fontFamily: GEIST,
-                fontSize: "clamp(10px, 0.8vw, 12px)",
+                fontSize: "clamp(11px, 0.9vw, 13px)",
                 color: "#ffffff",
                 outline: "none",
               }}
             />
           </div>
+        </div>
 
-          {/* Category filter */}
-          <div style={{ display: "flex", gap: "clamp(4px, 0.5vw, 8px)", flexWrap: "wrap" }}>
-            {categories.slice(0, 6).map((cat) => (
-              <button
-                key={cat}
-                type="button"
-                onClick={() => setCategoryFilter(cat)}
-                style={{
-                  fontFamily: GEIST,
-                  fontSize: "clamp(9px, 0.75vw, 11px)",
-                  fontWeight: categoryFilter === cat ? 600 : 400,
-                  padding: "clamp(5px, 0.5vw, 8px) clamp(10px, 1vw, 16px)",
-                  borderRadius: 50,
-                  border: categoryFilter === cat ? "none" : "1px solid rgba(255,255,255,0.2)",
-                  background: categoryFilter === cat ? ORANGE : "transparent",
-                  color: "#ffffff",
-                  cursor: "pointer",
-                  textTransform: "capitalize",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {cat === "all" ? "All" : cat}
-              </button>
-            ))}
-          </div>
+        {/* Divider */}
+        <div style={{ height: 1, background: "rgba(255,255,255,0.08)", marginBottom: "clamp(12px, 1.2vw, 18px)" }} />
+
+        {/* Filters */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "flex-end",
+            flexWrap: "wrap",
+            gap: "clamp(8px, 0.8vw, 12px)",
+            marginBottom: "clamp(12px, 1.2vw, 18px)",
+          }}
+        >
+          <FilterDropdown label="Category" value={categoryFilter} options={categoryOptions} onChange={setCategoryFilter} />
+          <FilterDropdown label="Status" value={statusFilter} options={statusOptions} onChange={setStatusFilter} />
+          <FilterDropdown label="Location" value={locationFilter} options={locationOptions} onChange={setLocationFilter} />
+          <FilterDropdown label="Date posted" value={dateFilter} options={dateOptions} onChange={setDateFilter} />
         </div>
 
         {/* Table container */}
@@ -333,23 +482,24 @@ export default function JobPostManagement() {
 
           {/* Table */}
           <div className="table-scroll" style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 680 }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 760 }}>
               <thead>
                 <tr>
-                  <th style={thStyle}><span style={{ display: "inline-flex", alignItems: "center" }}>Consumer <SortIcon /></span></th>
                   <th style={thStyle}><span style={{ display: "inline-flex", alignItems: "center" }}>Job Title <SortIcon /></span></th>
                   <th style={thStyle}><span style={{ display: "inline-flex", alignItems: "center" }}>Category <SortIcon /></span></th>
+                  <th style={thStyle}><span style={{ display: "inline-flex", alignItems: "center" }}>Date & Time <SortIcon /></span></th>
+                  <th style={thStyle}><span style={{ display: "inline-flex", alignItems: "center" }}>Posted By <SortIcon /></span></th>
                   <th style={thStyle}><span style={{ display: "inline-flex", alignItems: "center" }}>Location <SortIcon /></span></th>
-                  <th style={thStyle}><span style={{ display: "inline-flex", alignItems: "center" }}>Scheduled <SortIcon /></span></th>
+                  <th style={thStyle}><span style={{ display: "inline-flex", alignItems: "center" }}>Assigned To <SortIcon /></span></th>
                   <th style={thStyle}><span style={{ display: "inline-flex", alignItems: "center" }}>Status <SortIcon /></span></th>
-                  <th style={thStyle}><span style={{ display: "inline-flex", alignItems: "center" }}>Date Posted <SortIcon /></span></th>
+                  <th style={{ ...thStyle, width: 60, minWidth: 60 }} />
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
                   <tr>
                     <td
-                      colSpan={7}
+                      colSpan={8}
                       style={{
                         fontFamily: GEIST, fontSize: "clamp(12px, 1vw, 14px)",
                         color: "rgba(255,255,255,0.4)",
@@ -362,7 +512,7 @@ export default function JobPostManagement() {
                 ) : pageData.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={7}
+                      colSpan={8}
                       style={{
                         fontFamily: GEIST, fontSize: "clamp(12px, 1vw, 14px)",
                         color: "rgba(255,255,255,0.4)",
@@ -384,17 +534,43 @@ export default function JobPostManagement() {
                     };
                     return (
                       <tr key={row._id}>
-                        <td style={td}>{row.consumer?.name || "—"}</td>
                         <td style={{ ...td, maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis" }}>
                           {row.title || "—"}
                         </td>
                         <td style={td}>{row.category || "—"}</td>
+                        <td style={td}>{formatDate(row.createdAt)}</td>
+                        <td style={td}>{row.consumer?.name || "—"}</td>
                         <td style={{ ...td, maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis" }}>
                           {row.location || "—"}
                         </td>
-                        <td style={td}>{row.scheduledTime || "ASAP"}</td>
+                        <td style={td}>{row.provider?.name || "—"}</td>
                         <td style={td}><StatusBadge status={row.status} /></td>
-                        <td style={td}>{formatDate(row.createdAt)}</td>
+                        <td style={{ ...td, textAlign: "center" }}>
+                          <button
+                            type="button"
+                            onClick={() => setDeleteModal(row._id?.toString())}
+                            style={{
+                              background: "none",
+                              border: "none",
+                              cursor: "pointer",
+                              padding: 0,
+                              display: "inline-flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                            }}
+                          >
+                            <img
+                              src="/bin-icon.png"
+                              alt="Delete"
+                              style={{
+                                width: "clamp(18px, 1.5vw, 22px)",
+                                height: "clamp(18px, 1.5vw, 22px)",
+                                filter: "brightness(0) invert(1)",
+                                opacity: 0.6,
+                              }}
+                            />
+                          </button>
+                        </td>
                       </tr>
                     );
                   })
@@ -458,6 +634,116 @@ export default function JobPostManagement() {
           </button>
         </div>
       </main>
+
+      {/* Delete confirmation modal */}
+      {deleteModal && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.65)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 200,
+          }}
+        >
+          <div
+            style={{
+              background: "#000F2C",
+              border: "1px solid rgba(255,255,255,0.12)",
+              borderRadius: 16,
+              padding: "clamp(24px, 2.5vw, 40px)",
+              maxWidth: 380,
+              width: "90%",
+              textAlign: "center",
+            }}
+          >
+            <div
+              style={{
+                width: 48,
+                height: 48,
+                borderRadius: "50%",
+                background: "#FF5A6520",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                margin: "0 auto 16px",
+              }}
+            >
+              <img
+                src="/bin-icon.png"
+                alt=""
+                style={{
+                  width: 22,
+                  height: 22,
+                  filter:
+                    "brightness(0) saturate(100%) invert(42%) sepia(80%) saturate(600%) hue-rotate(310deg)",
+                }}
+              />
+            </div>
+            <h3
+              style={{
+                fontFamily: PP_MORI,
+                fontWeight: 600,
+                fontSize: "clamp(16px, 1.4vw, 20px)",
+                color: "#ffffff",
+                margin: "0 0 8px 0",
+              }}
+            >
+              Are you sure?
+            </h3>
+            <p
+              style={{
+                fontFamily: GEIST,
+                fontWeight: 400,
+                fontSize: "clamp(11px, 0.9vw, 13px)",
+                color: "rgba(255,255,255,0.5)",
+                margin: "0 0 24px 0",
+                lineHeight: "1.5",
+              }}
+            >
+              This will permanently delete the job post and cannot be undone.
+            </p>
+            <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
+              <button
+                type="button"
+                onClick={() => setDeleteModal(null)}
+                style={{
+                  fontFamily: GEIST,
+                  fontWeight: 400,
+                  fontSize: "clamp(11px, 0.9vw, 13px)",
+                  padding: "clamp(9px, 0.85vw, 12px) clamp(20px, 2vw, 32px)",
+                  borderRadius: 50,
+                  background: "transparent",
+                  border: "1px solid rgba(255,255,255,0.3)",
+                  color: "#ffffff",
+                  cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDelete(deleteModal)}
+                style={{
+                  fontFamily: GEIST,
+                  fontWeight: 400,
+                  fontSize: "clamp(11px, 0.9vw, 13px)",
+                  padding: "clamp(9px, 0.85vw, 12px) clamp(20px, 2vw, 32px)",
+                  borderRadius: 50,
+                  background: "#FF5A65",
+                  border: "none",
+                  color: "#ffffff",
+                  cursor: "pointer",
+                }}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style>{`
         .table-scroll {

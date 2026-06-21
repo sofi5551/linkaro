@@ -322,6 +322,7 @@ export default function UserManagement() {
       >
         {/* Page header */}
         <div
+          className="page-header-row user-mgmt-header"
           style={{
             display: "flex",
             alignItems: "flex-start",
@@ -331,7 +332,7 @@ export default function UserManagement() {
             marginBottom: "clamp(20px, 2vw, 32px)",
           }}
         >
-          <div>
+          <div className="page-header-title">
             <h1
               style={{
                 fontFamily: PP_MORI,
