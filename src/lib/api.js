@@ -1,6 +1,6 @@
 // Base URL for the linkaro-backend Express API.
 export const API_URL =
-  process.env.NEXT_PUBLIC_API_URL || "https://linkaro-backend.onrender.com";
+  process.env.NEXT_PUBLIC_API_URL || "https://linkaro-backend-vk2u.onrender.com";
 
 // Fetch wrapper for calling linkaro-backend. Sends cookies (admin/mobile JWT)
 // and defaults to JSON unless the body is FormData.
